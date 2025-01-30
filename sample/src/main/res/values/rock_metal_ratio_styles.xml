@@ -15,10 +15,8 @@
   -->
 
 <resources>
-    <color name="rock_metal_ratio_column_color">#ff5500</color>
-
     <style name="RockMetalRatioColumn1Style">
-        <item name="android:color">@color/rock_metal_ratio_column_color</item>
+        <item name="android:color">#ff5500</item>
     </style>
 
     <style name="RockMetalRatioColumnLayerStyle">
