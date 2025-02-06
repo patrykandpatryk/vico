@@ -26,6 +26,7 @@ import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartMode
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartRanges
 import com.patrykandpatrick.vico.multiplatform.cartesian.layer.CartesianLayer
 import com.patrykandpatrick.vico.multiplatform.cartesian.layer.CartesianLayerPadding
+import com.patrykandpatrick.vico.multiplatform.cartesian.marker.PointerState
 import com.patrykandpatrick.vico.multiplatform.common.MeasuringContext
 import com.patrykandpatrick.vico.multiplatform.common.Point
 import com.patrykandpatrick.vico.multiplatform.common.data.CacheStore
@@ -48,7 +49,12 @@ public interface CartesianMeasuringContext : MeasuringContext {
   public val layerPadding: CartesianLayerPadding
 
   /** The pointer position. */
+  @Deprecated("Use pointerState instead", ReplaceWith("pointerState?.point")) // TODO
   public val pointerPosition: Point?
+    get() = pointerState?.point
+
+  /** The pointer state. */
+  public val pointerState: PointerState?
 }
 
 @Composable
@@ -58,7 +64,7 @@ internal fun rememberCartesianMeasuringContext(
   scrollEnabled: Boolean,
   zoomEnabled: Boolean,
   layerPadding: CartesianLayerPadding,
-  pointerPosition: Point?,
+  pointerState: PointerState?,
 ): MutableCartesianMeasuringContext {
   val fontFamilyResolver = LocalFontFamilyResolver.current
   val density = LocalDensity.current
@@ -73,7 +79,7 @@ internal fun rememberCartesianMeasuringContext(
     scrollEnabled,
     zoomEnabled,
     layerPadding,
-    pointerPosition,
+    pointerState,
     cacheStore,
   ) {
     MutableCartesianMeasuringContext(
@@ -86,7 +92,7 @@ internal fun rememberCartesianMeasuringContext(
       scrollEnabled = scrollEnabled,
       zoomEnabled = zoomEnabled,
       layerPadding = layerPadding,
-      pointerPosition = pointerPosition,
+      pointerState = pointerState,
       cacheStore = cacheStore,
     )
   }

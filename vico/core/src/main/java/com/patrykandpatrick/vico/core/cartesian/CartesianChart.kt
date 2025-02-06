@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 by Patryk Goworowski and Patrick Michalik.
+ * Copyright 2025 by Patryk Goworowski and Patrick Michalik.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import com.patrykandpatrick.vico.core.cartesian.layer.HorizontalCartesianLayerMa
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.cartesian.layer.MutableCartesianLayerDimensions
 import com.patrykandpatrick.vico.core.cartesian.marker.CartesianMarker
+import com.patrykandpatrick.vico.core.cartesian.marker.CartesianMarkerController
 import com.patrykandpatrick.vico.core.cartesian.marker.CartesianMarkerVisibilityListener
 import com.patrykandpatrick.vico.core.common.Legend
 import com.patrykandpatrick.vico.core.common.Point
@@ -73,6 +74,7 @@ import kotlin.math.abs
  * @property decorations the [Decoration]s.
  * @property persistentMarkers adds persistent [CartesianMarker]s.
  * @property getXStep defines the _x_ step (the difference between neighboring major _x_ values).
+ * @property markerController TODO.
  */
 @Stable
 public open class CartesianChart(
@@ -90,6 +92,7 @@ public open class CartesianChart(
   protected val decorations: List<Decoration> = emptyList(),
   protected val persistentMarkers: (PersistentMarkerScope.(ExtraStore) -> Unit)? = null,
   protected val getXStep: ((CartesianChartModel) -> Double) = { it.getXDeltaGcd() },
+  protected val markerController: CartesianMarkerController = CartesianMarkerController.showOnPress,
 ) : CartesianLayerMarginUpdater<CartesianChartModel> {
   private val persistentMarkerMap = mutableMapOf<Double, CartesianMarker>()
   private val persistentMarkerScope = PersistentMarkerScope {
@@ -281,8 +284,11 @@ public open class CartesianChart(
         model.forEachWithLayer(drawingConsumer.apply { this.context = context })
       }
       forEachPersistentMarker { marker, targets -> marker.drawUnderLayers(context, targets) }
-      val markerTargets = getMarkerTargets(context, pointerPosition)
-      if (markerTargets.isNotEmpty()) marker?.drawUnderLayers(context, markerTargets)
+      val markerTargets = getMarkerTargets(context, pointerState?.point)
+      val drawMarker =
+        markerTargets.isNotEmpty() &&
+          pointerState?.let { markerController.onPointerState(it, markerTargets) } == true
+      if (drawMarker) marker?.drawUnderLayers(context, markerTargets)
       canvas.drawBitmap(layerBitmap, 0f, 0f, null)
       fadingEdges?.run {
         draw(context)
@@ -292,7 +298,7 @@ public open class CartesianChart(
       decorations.forEach { it.drawOverLayers(context) }
       forEachPersistentMarker { marker, targets -> marker.drawOverLayers(context, targets) }
       legend?.draw(context)
-      if (markerTargets.isNotEmpty()) marker?.drawOverLayers(context, markerTargets)
+      if (drawMarker) marker?.drawOverLayers(context, markerTargets)
     }
   }
 
@@ -431,6 +437,7 @@ public open class CartesianChart(
     decorations: List<Decoration> = this.decorations,
     persistentMarkers: (PersistentMarkerScope.(ExtraStore) -> Unit)? = this.persistentMarkers,
     getXStep: ((CartesianChartModel) -> Double) = this.getXStep,
+    markerController: CartesianMarkerController = this.markerController,
   ): CartesianChart =
     CartesianChart(
         *layers,
@@ -446,6 +453,7 @@ public open class CartesianChart(
         decorations = decorations,
         persistentMarkers = persistentMarkers,
         getXStep = getXStep,
+        markerController = markerController,
       )
       .also { it.id = id }
 
@@ -461,6 +469,7 @@ public open class CartesianChart(
         decorations == other.decorations &&
         persistentMarkers == other.persistentMarkers &&
         getXStep == other.getXStep &&
+        markerController == other.markerController &&
         layers == other.layers
 
   override fun hashCode(): Int =
@@ -474,6 +483,7 @@ public open class CartesianChart(
       decorations,
       persistentMarkers,
       getXStep,
+      markerController,
       layers,
     )
 

@@ -28,7 +28,7 @@ import com.patrykandpatrick.vico.core.cartesian.MutableCartesianMeasuringContext
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartRanges
 import com.patrykandpatrick.vico.core.cartesian.layer.CartesianLayerPadding
-import com.patrykandpatrick.vico.core.common.Point
+import com.patrykandpatrick.vico.core.cartesian.marker.PointerState
 import com.patrykandpatrick.vico.core.common.data.CacheStore
 
 @Composable
@@ -39,7 +39,7 @@ internal fun rememberCartesianMeasuringContext(
   scrollEnabled: Boolean,
   zoomEnabled: Boolean,
   layerPadding: CartesianLayerPadding,
-  pointerPosition: Point?,
+  pointerState: PointerState?,
 ): CartesianMeasuringContext {
   val density = LocalDensity.current
   val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -53,7 +53,7 @@ internal fun rememberCartesianMeasuringContext(
     scrollEnabled,
     zoomEnabled,
     layerPadding,
-    pointerPosition,
+    pointerState,
     cacheStore,
   ) {
     MutableCartesianMeasuringContext(
@@ -66,7 +66,7 @@ internal fun rememberCartesianMeasuringContext(
       scrollEnabled = scrollEnabled,
       zoomEnabled = zoomEnabled,
       layerPadding = layerPadding,
-      pointerPosition = pointerPosition,
+      pointerState = pointerState,
       cacheStore = cacheStore,
     )
   }

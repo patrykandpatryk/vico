@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 by Patryk Goworowski and Patrick Michalik.
+ * Copyright 2025 by Patryk Goworowski and Patrick Michalik.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import com.patrykandpatrick.vico.compose.common.detectZoomGestures
+import com.patrykandpatrick.vico.core.cartesian.marker.PointerState
 import com.patrykandpatrick.vico.core.common.Point
 
 internal fun Modifier.chartTouchEvent(
-  setTouchPoint: ((Point?) -> Unit)?,
+  setPointerState: ((PointerState) -> Unit)?,
   isScrollEnabled: Boolean,
   scrollState: VicoScrollState,
   onZoom: ((Float, Offset) -> Unit)?,
@@ -38,16 +39,17 @@ internal fun Modifier.chartTouchEvent(
       enabled = isScrollEnabled,
     )
     .then(
-      if (setTouchPoint != null) {
-        pointerInput(setTouchPoint) {
+      if (setPointerState != null) {
+        pointerInput(setPointerState) {
           awaitPointerEventScope {
             while (true) {
               val event = awaitPointerEvent()
+              val pointerPosition = event.changes.first().position.point
               when (event.type) {
-                PointerEventType.Press -> setTouchPoint(event.changes.first().position.point)
-                PointerEventType.Release -> setTouchPoint(null)
+                PointerEventType.Press -> setPointerState(PointerState.Pressed(pointerPosition))
+                PointerEventType.Release -> setPointerState(PointerState.Released(pointerPosition))
                 PointerEventType.Move ->
-                  if (!isScrollEnabled) setTouchPoint(event.changes.first().position.point)
+                  if (!isScrollEnabled) setPointerState(PointerState.Moved(pointerPosition))
               }
             }
           }
@@ -58,9 +60,9 @@ internal fun Modifier.chartTouchEvent(
     )
     .then(
       if (isScrollEnabled && onZoom != null) {
-        pointerInput(setTouchPoint, onZoom) {
+        pointerInput(setPointerState, onZoom) {
           detectZoomGestures { centroid, zoom ->
-            setTouchPoint?.invoke(null)
+            setPointerState?.invoke(PointerState.Zoomed(centroid.point))
             onZoom(zoom, centroid)
           }
         }

@@ -46,8 +46,8 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartRanges
 import com.patrykandpatrick.vico.core.cartesian.data.MutableCartesianChartRanges
 import com.patrykandpatrick.vico.core.cartesian.data.toImmutable
 import com.patrykandpatrick.vico.core.cartesian.layer.MutableCartesianLayerDimensions
+import com.patrykandpatrick.vico.core.cartesian.marker.PointerState
 import com.patrykandpatrick.vico.core.common.Defaults.CHART_HEIGHT
-import com.patrykandpatrick.vico.core.common.Point
 import com.patrykandpatrick.vico.core.common.ValueWrapper
 import com.patrykandpatrick.vico.core.common.getValue
 import com.patrykandpatrick.vico.core.common.set
@@ -134,7 +134,7 @@ internal fun CartesianChartHostImpl(
   previousModel: CartesianChartModel? = null,
 ) {
   val canvasBounds = remember { RectF() }
-  val pointerPosition = remember { mutableStateOf<Point?>(null) }
+  val pointerState = remember { mutableStateOf<PointerState?>(null) }
   val measuringContext =
     rememberCartesianMeasuringContext(
       canvasBounds = canvasBounds,
@@ -144,7 +144,7 @@ internal fun CartesianChartHostImpl(
       zoomEnabled = scrollState.scrollEnabled && zoomState.zoomEnabled,
       layerPadding =
         remember(chart.layerPadding, model.extraStore) { chart.layerPadding(model.extraStore) },
-      pointerPosition = pointerPosition.value,
+      pointerState = pointerState.value,
     )
 
   val coroutineScope = rememberCoroutineScope()
@@ -153,7 +153,9 @@ internal fun CartesianChartHostImpl(
 
   LaunchedEffect(scrollState.pointerXDeltas) {
     scrollState.pointerXDeltas.collect { delta ->
-      pointerPosition.value?.let { point -> pointerPosition.value = point.copy(point.x + delta) }
+      pointerState.value
+        ?.takeIf { it.isPressedOrMoved }
+        ?.let { pointerState.value = PointerState.Moved(it.point.copy(it.point.x + delta)) }
     }
   }
 
@@ -163,9 +165,9 @@ internal fun CartesianChartHostImpl(
     modifier =
       Modifier.fillMaxSize()
         .chartTouchEvent(
-          setTouchPoint =
+          setPointerState =
             remember(chart.marker == null) {
-              if (chart.marker != null) pointerPosition.component2() else null
+              if (chart.marker != null) pointerState.component2() else null
             },
           isScrollEnabled = scrollState.scrollEnabled,
           scrollState = scrollState,
