@@ -35,9 +35,6 @@ public interface CartesianMeasuringContext : MeasuringContext {
   /** Whether scroll is enabled. */
   public val scrollEnabled: Boolean
 
-  /** Whether move events should be consumed. */
-  public val consumeMoveEvents: Boolean
-
   /** Whether zoom is enabled. */
   public val zoomEnabled: Boolean
 
