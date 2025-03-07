@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.patrykandpatrick.vico.compose.cartesian.data.component1
 import com.patrykandpatrick.vico.compose.cartesian.data.component2
 import com.patrykandpatrick.vico.compose.cartesian.data.component3
+import com.patrykandpatrick.vico.compose.cartesian.data.component4
 import com.patrykandpatrick.vico.core.cartesian.CartesianChart
 import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModel
@@ -49,6 +50,7 @@ import com.patrykandpatrick.vico.core.cartesian.layer.MutableCartesianLayerDimen
 import com.patrykandpatrick.vico.core.common.Defaults.CHART_HEIGHT
 import com.patrykandpatrick.vico.core.common.Point
 import com.patrykandpatrick.vico.core.common.ValueWrapper
+import com.patrykandpatrick.vico.core.common.data.ExtraStore
 import com.patrykandpatrick.vico.core.common.getValue
 import com.patrykandpatrick.vico.core.common.set
 import com.patrykandpatrick.vico.core.common.setValue
@@ -82,11 +84,19 @@ public fun CartesianChartHost(
 ) {
   val mutableRanges = remember(chart) { MutableCartesianChartRanges() }
   val modelWrapper by modelProducer.collectAsState(chart, animationSpec, animateIn, mutableRanges)
-  val (model, previousModel, ranges) = modelWrapper
+  val (model, previousModel, ranges, extraStore) = modelWrapper
 
   CartesianChartHostBox(modifier) {
     if (model != null) {
-      CartesianChartHostImpl(chart, model, scrollState, zoomState, ranges, previousModel)
+      CartesianChartHostImpl(
+        chart,
+        model,
+        scrollState,
+        zoomState,
+        ranges,
+        previousModel,
+        extraStore,
+      )
     } else {
       placeholder()
     }
@@ -132,12 +142,14 @@ internal fun CartesianChartHostImpl(
   zoomState: VicoZoomState,
   ranges: CartesianChartRanges,
   previousModel: CartesianChartModel? = null,
+  extraStore: ExtraStore = ExtraStore.Empty,
 ) {
   val canvasBounds = remember { RectF() }
   val pointerPosition = remember { mutableStateOf<Point?>(null) }
   val measuringContext =
     rememberCartesianMeasuringContext(
       canvasBounds = canvasBounds,
+      extraStore = extraStore,
       model = model,
       ranges = ranges,
       scrollEnabled = scrollState.scrollEnabled,
@@ -163,12 +175,12 @@ internal fun CartesianChartHostImpl(
   Canvas(
     modifier =
       Modifier.fillMaxSize()
-        .chartTouchEvent(
-          setTouchPoint =
+        .pointerInput(
+          scrollState = scrollState,
+          onPointerPositionChange =
             remember(chart.marker == null) {
               if (chart.marker != null) pointerPosition.component2() else null
             },
-          scrollState = scrollState,
           onZoom =
             remember(zoomState, scrollState, chart, coroutineScope) {
               if (zoomState.zoomEnabled) {

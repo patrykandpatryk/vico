@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 by Patryk Goworowski and Patrick Michalik.
+ * Copyright 2025 by Patryk Goworowski and Patrick Michalik.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,33 +56,19 @@ import kotlin.collections.component2
 import kotlin.collections.set
 import kotlin.math.abs
 
-/**
- * A chart based on a Cartesian coordinate plane, composed of [CartesianLayer]s.
- *
- * @param startAxis the start [Axis].
- * @param topAxis the top [Axis].
- * @param endAxis the end [Axis].
- * @param bottomAxis the bottom [Axis].
- * @property layers the [CartesianLayer]s.
- * @property marker appears when the [CartesianChart] is tapped.
- * @property markerVisibilityListener allows for listening to [marker] visibility changes.
- * @property layerPadding returns the [CartesianLayerPadding].
- * @property legend the legend.
- * @property fadingEdges applies a horizontal fade to the edges of the [CartesianChart], provided
- *   that it’s scrollable.
- * @property decorations the [Decoration]s.
- * @property persistentMarkers adds persistent [CartesianMarker]s.
- * @property getXStep defines the _x_ step (the difference between neighboring major _x_ values).
- */
+/** A chart based on a Cartesian coordinate plane, composed of [CartesianLayer]s. */
 @Stable
-public open class CartesianChart(
+public open class CartesianChart
+private constructor(
   vararg layers: CartesianLayer<*>,
   startAxis: Axis<Axis.Position.Vertical.Start>? = null,
   topAxis: Axis<Axis.Position.Horizontal.Top>? = null,
   endAxis: Axis<Axis.Position.Vertical.End>? = null,
   bottomAxis: Axis<Axis.Position.Horizontal.Bottom>? = null,
+  /** @suppress */
   @get:RestrictTo(RestrictTo.Scope.LIBRARY_GROUP) public val marker: CartesianMarker? = null,
   protected val markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
+  /** @suppress */
   @get:RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
   public val layerPadding: ((ExtraStore) -> CartesianLayerPadding) = { CartesianLayerPadding() },
   protected val legend: Legend<CartesianMeasuringContext, CartesianDrawingContext>? = null,
@@ -90,17 +76,19 @@ public open class CartesianChart(
   protected val decorations: List<Decoration> = emptyList(),
   protected val persistentMarkers: (PersistentMarkerScope.(ExtraStore) -> Unit)? = null,
   protected val getXStep: ((CartesianChartModel) -> Double) = { it.getXDeltaGcd() },
+  /** @suppress */
+  @get:RestrictTo(RestrictTo.Scope.LIBRARY_GROUP) public val id: UUID,
+  private var previousMarkerTargetHashCode: Int?,
+  private val persistentMarkerMap: MutableMap<Double, CartesianMarker>,
+  private var previousPersistentMarkerHashCode: Int?,
 ) : CartesianLayerMarginUpdater<CartesianChartModel> {
-  private val persistentMarkerMap = mutableMapOf<Double, CartesianMarker>()
   private val persistentMarkerScope = PersistentMarkerScope {
     persistentMarkerMap[it.toDouble()] = this
   }
-  private var previousPersistentMarkerHashCode: Int? = null
   private val layerMargins = CartesianLayerMargins()
   private val layerCanvas = Canvas()
   private val axisManager = AxisManager()
   private val _markerTargets = sortedMapOf<Double, MutableList<CartesianMarker.Target>>()
-  private var previousMarkerTargetHashCode: Int? = null
 
   private val drawingConsumer =
     object : ModelAndLayerConsumer {
@@ -193,17 +181,64 @@ public open class CartesianChart(
   /** The bottom [Axis]. */
   public val bottomAxis: Axis<Axis.Position.Horizontal.Bottom>? by axisManager::bottomAxis
 
-  /** @suppress */
-  @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
-  public var id: UUID = UUID.randomUUID()
-    private set
-
   init {
     axisManager.startAxis = startAxis
     axisManager.topAxis = topAxis
     axisManager.endAxis = endAxis
     axisManager.bottomAxis = bottomAxis
   }
+
+  /**
+   * Creates a [CartesianChart].
+   *
+   * @param layers the [CartesianLayer]s.
+   * @param startAxis the start [Axis].
+   * @param topAxis the top [Axis].
+   * @param endAxis the end [Axis].
+   * @param bottomAxis the bottom [Axis].
+   * @param marker appears when the [CartesianChart] is tapped.
+   * @param markerVisibilityListener allows for listening to [marker] visibility changes.
+   * @param layerPadding returns the [CartesianLayerPadding].
+   * @param legend the legend.
+   * @param fadingEdges applies a horizontal fade to the edges of the [CartesianChart], provided
+   *   that it’s scrollable.
+   * @param decorations the [Decoration]s.
+   * @param persistentMarkers adds persistent [CartesianMarker]s.
+   * @param getXStep defines the _x_ step (the difference between neighboring major _x_ values).
+   */
+  public constructor(
+    vararg layers: CartesianLayer<*>,
+    startAxis: Axis<Axis.Position.Vertical.Start>? = null,
+    topAxis: Axis<Axis.Position.Horizontal.Top>? = null,
+    endAxis: Axis<Axis.Position.Vertical.End>? = null,
+    bottomAxis: Axis<Axis.Position.Horizontal.Bottom>? = null,
+    marker: CartesianMarker? = null,
+    markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
+    layerPadding: ((ExtraStore) -> CartesianLayerPadding) = { CartesianLayerPadding() },
+    legend: Legend<CartesianMeasuringContext, CartesianDrawingContext>? = null,
+    fadingEdges: FadingEdges? = null,
+    decorations: List<Decoration> = emptyList(),
+    persistentMarkers: (PersistentMarkerScope.(ExtraStore) -> Unit)? = null,
+    getXStep: ((CartesianChartModel) -> Double) = { it.getXDeltaGcd() },
+  ) : this(
+    layers = layers,
+    startAxis = startAxis,
+    topAxis = topAxis,
+    endAxis = endAxis,
+    bottomAxis = bottomAxis,
+    marker = marker,
+    markerVisibilityListener = markerVisibilityListener,
+    layerPadding = layerPadding,
+    legend = legend,
+    fadingEdges = fadingEdges,
+    decorations = decorations,
+    persistentMarkers = persistentMarkers,
+    getXStep = getXStep,
+    id = UUID.randomUUID(),
+    previousMarkerTargetHashCode = null,
+    persistentMarkerMap = mutableMapOf(),
+    previousPersistentMarkerHashCode = null,
+  )
 
   private fun setLayerBounds(left: Float, top: Float, right: Float, bottom: Float) {
     layerBounds.set(left, top, right, bottom)
@@ -433,21 +468,24 @@ public open class CartesianChart(
     getXStep: ((CartesianChartModel) -> Double) = this.getXStep,
   ): CartesianChart =
     CartesianChart(
-        *layers,
-        startAxis = startAxis,
-        topAxis = topAxis,
-        endAxis = endAxis,
-        bottomAxis = bottomAxis,
-        marker = marker,
-        markerVisibilityListener = markerVisibilityListener,
-        layerPadding = layerPadding,
-        legend = legend,
-        fadingEdges = fadingEdges,
-        decorations = decorations,
-        persistentMarkers = persistentMarkers,
-        getXStep = getXStep,
-      )
-      .also { it.id = id }
+      layers = layers,
+      startAxis = startAxis,
+      topAxis = topAxis,
+      endAxis = endAxis,
+      bottomAxis = bottomAxis,
+      marker = marker,
+      markerVisibilityListener = markerVisibilityListener,
+      layerPadding = layerPadding,
+      legend = legend,
+      fadingEdges = fadingEdges,
+      decorations = decorations,
+      persistentMarkers = persistentMarkers,
+      getXStep = getXStep,
+      id = id,
+      previousMarkerTargetHashCode = previousMarkerTargetHashCode,
+      persistentMarkerMap = persistentMarkerMap,
+      previousPersistentMarkerHashCode = previousPersistentMarkerHashCode,
+    )
 
   override fun equals(other: Any?): Boolean =
     this === other ||
@@ -461,21 +499,29 @@ public open class CartesianChart(
         decorations == other.decorations &&
         persistentMarkers == other.persistentMarkers &&
         getXStep == other.getXStep &&
-        layers == other.layers
+        layers == other.layers &&
+        startAxis == other.startAxis &&
+        topAxis == other.topAxis &&
+        endAxis == other.endAxis &&
+        bottomAxis == other.bottomAxis
 
-  override fun hashCode(): Int =
-    Objects.hash(
-      id,
-      marker,
-      markerVisibilityListener,
-      layerPadding,
-      legend,
-      fadingEdges,
-      decorations,
-      persistentMarkers,
-      getXStep,
-      layers,
-    )
+  override fun hashCode(): Int {
+    var result = marker.hashCode()
+    result = 31 * result + markerVisibilityListener.hashCode()
+    result = 31 * result + layerPadding.hashCode()
+    result = 31 * result + legend.hashCode()
+    result = 31 * result + fadingEdges.hashCode()
+    result = 31 * result + decorations.hashCode()
+    result = 31 * result + persistentMarkers.hashCode()
+    result = 31 * result + getXStep.hashCode()
+    result = 31 * result + layers.hashCode()
+    result = 31 * result + startAxis.hashCode()
+    result = 31 * result + topAxis.hashCode()
+    result = 31 * result + endAxis.hashCode()
+    result = 31 * result + bottomAxis.hashCode()
+    result = 31 * result + id.hashCode()
+    return result
+  }
 
   /** Facilitates adding persistent [CartesianMarker]s to [CartesianChart]s. */
   public fun interface PersistentMarkerScope {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 by Patryk Goworowski and Patrick Michalik.
+ * Copyright 2025 by Patryk Goworowski and Patrick Michalik.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,7 +91,8 @@ internal fun List<CartesianLayerModel.Entry>.getXDeltaGcd(): Double {
 }
 
 internal inline fun <T : CartesianLayerModel.Entry> List<T>.forEachIn(
-  range: ClosedFloatingPointRange<Double>,
+  minX: Double,
+  maxX: Double,
   padding: Int = 0,
   action: (T, T?) -> Unit,
 ) {
@@ -99,12 +100,43 @@ internal inline fun <T : CartesianLayerModel.Entry> List<T>.forEachIn(
   var end = 0
   for (entry in this) {
     when {
-      entry.x < range.start -> start++
-      entry.x > range.endInclusive -> break
+      entry.x < minX -> start++
+      entry.x > maxX -> break
     }
     end++
   }
   start = (start - padding).coerceAtLeast(0)
   end = (end + padding).coerceAtMost(lastIndex)
   (start..end).forEach { action(this[it], getOrNull(it + 1)) }
+}
+
+internal fun <T : CartesianLayerModel.Entry> List<T>.getSliceIndices(
+  layerXRangeStart: Double,
+  layerXRangeEnd: Double,
+  visibleXRangeStart: Double,
+  visibleXRangeEnd: Double,
+): Triple<Int, Int, Int> {
+  var firstInLayerXRange = 0
+  var lastInLayerXRange = 0
+  var firstVisible = 0
+  var lastVisible = 0
+  for (entry in this) {
+    when {
+      entry.x > layerXRangeEnd || lastInLayerXRange == lastIndex -> break
+      entry.x < layerXRangeStart -> {
+        firstInLayerXRange++
+        firstVisible++
+        lastVisible++
+      }
+      entry.x < visibleXRangeStart -> {
+        firstVisible++
+        lastVisible++
+      }
+      entry.x <= visibleXRangeEnd -> lastVisible++
+    }
+    lastInLayerXRange++
+  }
+  firstVisible = (firstVisible - 1).coerceAtLeast(firstInLayerXRange)
+  lastVisible = (lastVisible + 1).coerceAtMost(lastInLayerXRange)
+  return Triple(firstInLayerXRange, firstVisible, lastVisible)
 }

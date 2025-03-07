@@ -22,17 +22,18 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.multiplatform.cartesian.axis.Axis
 import com.patrykandpatrick.vico.multiplatform.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartRanges
+import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.ColumnCartesianLayerDrawingModel
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.ColumnCartesianLayerModel
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.MutableCartesianChartRanges
-import com.patrykandpatrick.vico.multiplatform.cartesian.data.forEachIn
+import com.patrykandpatrick.vico.multiplatform.cartesian.data.getSliceIndices
+import com.patrykandpatrick.vico.multiplatform.cartesian.getVisibleXRange
 import com.patrykandpatrick.vico.multiplatform.cartesian.layer.ColumnCartesianLayer.MergeMode
 import com.patrykandpatrick.vico.multiplatform.cartesian.marker.CartesianMarker
 import com.patrykandpatrick.vico.multiplatform.cartesian.marker.ColumnCartesianLayerMarkerTarget
@@ -42,7 +43,6 @@ import com.patrykandpatrick.vico.multiplatform.common.Position
 import com.patrykandpatrick.vico.multiplatform.common.ValueWrapper
 import com.patrykandpatrick.vico.multiplatform.common.component.LineComponent
 import com.patrykandpatrick.vico.multiplatform.common.component.TextComponent
-import com.patrykandpatrick.vico.multiplatform.common.component.intersectsVertical
 import com.patrykandpatrick.vico.multiplatform.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.multiplatform.common.data.CartesianLayerDrawingModelInterpolator
 import com.patrykandpatrick.vico.multiplatform.common.data.ExtraStore
@@ -142,7 +142,7 @@ protected constructor(
   override fun drawInternal(context: CartesianDrawingContext, model: ColumnCartesianLayerModel) {
     with(context) {
       _markerTargets.clear()
-      drawChartInternal(model, ranges, model.extraStore.getOrNull(drawingModelKey))
+      drawChartInternal(model, ranges, extraStore.getOrNull(drawingModelKey))
       stackInfo.clear()
     }
   }
@@ -163,13 +163,22 @@ protected constructor(
     val zeroLinePosition =
       layerBounds.bottom + (yRange.minY / yRange.length).toFloat() * layerBounds.height
     val mergeMode = mergeMode(model.extraStore)
+    val visibleXRange = getVisibleXRange()
 
     saveLayer(opacity = drawingModel?.opacity ?: 1f)
 
     model.series.forEachIndexed { index, entryCollection ->
       drawingStart = getDrawingStart(index, model.series.size, mergeMode) - scroll
 
-      entryCollection.forEachIn(ranges.minX..ranges.maxX) { entry, _ ->
+      val (_, firstVisibleIndex, lastVisibleIndex) =
+        entryCollection.getSliceIndices(
+          ranges.minX,
+          ranges.maxX,
+          visibleXRange.start,
+          visibleXRange.endInclusive,
+        )
+
+      entryCollection.subList(firstVisibleIndex, lastVisibleIndex + 1).forEach { entry ->
         val columnInfo = drawingModel?.getOrNull(index)?.get(entry.x)
         height =
           (columnInfo?.height ?: (abs(entry.y) / yRange.length)).toFloat() * layerBounds.height
@@ -202,24 +211,16 @@ protected constructor(
 
         val columnSignificantY = if (entry.y < 0f) columnBottom else columnTop
 
-        if (
-          column.intersectsVertical(
-            context = this,
-            x = columnCenterX,
-            bounds = layerBounds,
-            thicknessFactor = zoom,
-          )
-        ) {
-          updateMarkerTargets(
-            entry = entry,
-            canvasX = columnCenterX,
-            canvasY = columnSignificantY,
-            columnHeight = columnBottom - columnTop,
-            column = column,
-            mergeMode = mergeMode,
-          )
-          column.drawVertical(this, columnCenterX, columnTop, columnBottom, zoom)
-        }
+        updateMarkerTargets(
+          entry = entry,
+          canvasX = columnCenterX,
+          canvasY = columnSignificantY,
+          columnHeight = columnBottom - columnTop,
+          column = column,
+          mergeMode = mergeMode,
+        )
+
+        column.drawVertical(this, columnCenterX, columnTop, columnBottom, zoom)
 
         if (mergeMode is MergeMode.Grouped) {
           drawDataLabel(

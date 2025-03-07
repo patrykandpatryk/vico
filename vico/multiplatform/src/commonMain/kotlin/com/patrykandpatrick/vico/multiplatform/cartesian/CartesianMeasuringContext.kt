@@ -25,10 +25,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartRanges
 import com.patrykandpatrick.vico.multiplatform.cartesian.layer.CartesianLayer
+import com.patrykandpatrick.vico.multiplatform.cartesian.layer.CartesianLayerDimensions
 import com.patrykandpatrick.vico.multiplatform.cartesian.layer.CartesianLayerPadding
 import com.patrykandpatrick.vico.multiplatform.common.MeasuringContext
 import com.patrykandpatrick.vico.multiplatform.common.Point
 import com.patrykandpatrick.vico.multiplatform.common.data.CacheStore
+import com.patrykandpatrick.vico.multiplatform.common.data.ExtraStore
 
 /** A [MeasuringContext] extension with [CartesianChart]-specific data. */
 public interface CartesianMeasuringContext : MeasuringContext {
@@ -51,8 +53,16 @@ public interface CartesianMeasuringContext : MeasuringContext {
   public val pointerPosition: Point?
 }
 
+internal fun CartesianMeasuringContext.getFullXRange(layerDimensions: CartesianLayerDimensions) =
+  layerDimensions.run {
+    val start = ranges.minX - startPadding / xSpacing * ranges.xStep
+    val end = ranges.maxX + endPadding / xSpacing * ranges.xStep
+    start..end
+  }
+
 @Composable
 internal fun rememberCartesianMeasuringContext(
+  extraStore: ExtraStore,
   model: CartesianChartModel,
   ranges: CartesianChartRanges,
   scrollEnabled: Boolean,
@@ -67,6 +77,7 @@ internal fun rememberCartesianMeasuringContext(
   return remember(
     fontFamilyResolver,
     density,
+    extraStore,
     layoutDirection,
     model,
     ranges,
@@ -80,6 +91,7 @@ internal fun rememberCartesianMeasuringContext(
       canvasSize = Size.Zero,
       fontFamilyResolver = fontFamilyResolver,
       density = density,
+      extraStore = extraStore,
       layoutDirection = layoutDirection,
       model = model,
       ranges = ranges,

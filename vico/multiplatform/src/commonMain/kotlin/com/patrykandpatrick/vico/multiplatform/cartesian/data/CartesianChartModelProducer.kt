@@ -22,6 +22,7 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
@@ -43,14 +44,14 @@ public class CartesianChartModelProducer {
     partials: List<CartesianLayerModel.Partial>,
     transactionExtraStore: MutableExtraStore,
   ) {
-    withContext(Dispatchers.Default) {
+    coroutineScope {
       mutex.withLock {
         val immutablePartials = partials.toList()
         if (
           immutablePartials == this@CartesianChartModelProducer.lastPartials &&
             transactionExtraStore == this@CartesianChartModelProducer.lastTransactionExtraStore
         ) {
-          return@withContext
+          return@coroutineScope
         }
         updateReceivers.values
           .map { launch { it.handleUpdate(immutablePartials, transactionExtraStore) } }
@@ -76,19 +77,17 @@ public class CartesianChartModelProducer {
         }
     }
 
-  private suspend fun transformModel(
+  private suspend fun transform(
     key: Any,
     fraction: Float,
     model: CartesianChartModel?,
-    transactionExtraStore: ExtraStore,
     ranges: CartesianChartRanges,
   ) {
     with(updateReceivers[key] ?: return) {
       withContext(getDispatcher()) {
         transform(hostExtraStore, fraction)
-        val transformedModel = model?.copy(transactionExtraStore + hostExtraStore.copy())
         currentCoroutineContext().ensureActive()
-        onModelCreated(transformedModel, ranges)
+        onUpdate(model, ranges, hostExtraStore.copy())
       }
     }
   }
@@ -102,14 +101,14 @@ public class CartesianChartModelProducer {
     transform: suspend (MutableExtraStore, Float) -> Unit,
     hostExtraStore: MutableExtraStore,
     updateRanges: (CartesianChartModel?) -> CartesianChartRanges,
-    onModelCreated: (CartesianChartModel?, CartesianChartRanges) -> Unit,
+    onUpdate: (CartesianChartModel?, CartesianChartRanges, ExtraStore) -> Unit,
   ) {
     withContext(getDispatcher()) {
       val receiver =
         UpdateReceiver(
           cancelAnimation,
           startAnimation,
-          onModelCreated,
+          onUpdate,
           hostExtraStore,
           prepareForTransformation,
           transform,
@@ -134,7 +133,7 @@ public class CartesianChartModelProducer {
    * current coroutine is suspended until the ongoing update’s completion.
    */
   public suspend fun runTransaction(block: Transaction.() -> Unit) {
-    Transaction().also(block).commit()
+    withContext(Dispatchers.Default) { Transaction().also(block).commit() }
   }
 
   /** Handles data updates. This is used via [runTransaction]. */
@@ -163,7 +162,7 @@ public class CartesianChartModelProducer {
   private inner class UpdateReceiver(
     val cancelAnimation: suspend () -> Unit,
     val startAnimation: (transformModel: suspend (key: Any, fraction: Float) -> Unit) -> Unit,
-    val onModelCreated: (CartesianChartModel?, CartesianChartRanges) -> Unit,
+    val onUpdate: (CartesianChartModel?, CartesianChartRanges, ExtraStore) -> Unit,
     val hostExtraStore: MutableExtraStore,
     val prepareForTransformation:
       (CartesianChartModel?, MutableExtraStore, CartesianChartRanges) -> Unit,
@@ -178,15 +177,13 @@ public class CartesianChartModelProducer {
       val model = getModel(partials, transactionExtraStore + hostExtraStore)
       val ranges = updateRanges(model)
       prepareForTransformation(model, hostExtraStore, ranges)
-      startAnimation { key, fraction ->
-        transformModel(key, fraction, model, transactionExtraStore, ranges)
-      }
+      startAnimation { key, fraction -> transform(key, fraction, model, ranges) }
     }
   }
 
   private suspend fun getDispatcher(): CoroutineDispatcher {
     val context = currentCoroutineContext()
-    return if (context[PreviewContextKey] != null) Dispatchers.Main else Dispatchers.Default
+    return if (context[PreviewContextKey] != null) Dispatchers.Unconfined else Dispatchers.Default
   }
 }
 

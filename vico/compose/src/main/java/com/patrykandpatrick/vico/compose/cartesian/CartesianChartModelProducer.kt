@@ -20,13 +20,13 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalInspectionMode
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelWrapper
-import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelWrapperState
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartData
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartDataState
 import com.patrykandpatrick.vico.compose.common.rememberWrappedValue
 import com.patrykandpatrick.vico.core.cartesian.CartesianChart
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -46,8 +46,11 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 internal val defaultCartesianDiffAnimationSpec: AnimationSpec<Float> =
   tween(durationMillis = Animation.DIFF_DURATION)
@@ -58,12 +61,12 @@ internal fun CartesianChartModelProducer.collectAsState(
   animationSpec: AnimationSpec<Float>?,
   animateIn: Boolean,
   ranges: MutableCartesianChartRanges,
-): State<CartesianChartModelWrapper> {
+): State<CartesianChartData> {
   var previousHashCode by remember { ValueWrapper<Int?>(null) }
   val hashCode = hashCode()
   check(previousHashCode == null || hashCode == previousHashCode) { NEW_PRODUCER_ERROR_MESSAGE }
   previousHashCode = hashCode
-  val modelWrapperState = remember(chart.id) { CartesianChartModelWrapperState() }
+  val dataState = remember(chart.id) { CartesianChartDataState() }
   val extraStore = remember(chart.id) { MutableExtraStore() }
   val isInPreview = LocalInspectionMode.current
   val scope = rememberCoroutineScope { getCoroutineContext(isInPreview) }
@@ -76,11 +79,7 @@ internal fun CartesianChartModelProducer.collectAsState(
     var isAnimationFrameGenerationRunning = false
     val startAnimation: (transformModel: suspend (key: Any, fraction: Float) -> Unit) -> Unit =
       { transformModel ->
-        if (
-          animationSpec != null &&
-            !isInPreview &&
-            (modelWrapperState.value.model != null || animateIn)
-        ) {
+        if (animationSpec != null && !isInPreview && (dataState.value.model != null || animateIn)) {
           isAnimationRunning = true
           mainAnimationJob =
             scope.launch {
@@ -140,8 +139,8 @@ internal fun CartesianChartModelProducer.collectAsState(
             CartesianChartRanges.Empty
           }
         },
-      ) { model, ranges ->
-        modelWrapperState.set(model, ranges)
+      ) { model, ranges, extraStore ->
+        dataState.set(model, ranges, extraStore)
       }
     }
     return@LaunchRegistration {
@@ -151,7 +150,7 @@ internal fun CartesianChartModelProducer.collectAsState(
       unregisterFromUpdates(chartState.value.id)
     }
   }
-  return modelWrapperState
+  return dataState
 }
 
 @Composable
@@ -164,12 +163,14 @@ private fun LaunchRegistration(
   if (isInPreview) {
     runBlocking(getCoroutineContext(isPreview = true)) { block() }
   } else {
-    DisposableEffect(chartID, animateIn) {
-      val disposable = block()
-      onDispose { disposable() }
+    LaunchedEffect(chartID, animateIn) {
+      withContext(getCoroutineContext(isPreview = false)) {
+        val disposable = block()
+        currentCoroutineContext().job.invokeOnCompletion { disposable() }
+      }
     }
   }
 }
 
 private fun getCoroutineContext(isPreview: Boolean): CoroutineContext =
-  if (isPreview) Dispatchers.Main + PreviewContext else EmptyCoroutineContext
+  if (isPreview) Dispatchers.Unconfined + PreviewContext else EmptyCoroutineContext

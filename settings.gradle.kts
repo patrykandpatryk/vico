@@ -33,12 +33,17 @@ dependencyResolutionManagement {
 rootProject.name = "Vico"
 
 include(
-  "sample",
+  "sample:app",
+  "sample:compose",
+  "sample:multiplatform",
+  "sample:views",
   "vico",
   "vico:compose",
   "vico:compose-m2",
   "vico:compose-m3",
   "vico:core",
   "vico:multiplatform",
+  "vico:multiplatform-m2",
+  "vico:multiplatform-m3",
   "vico:views",
 )

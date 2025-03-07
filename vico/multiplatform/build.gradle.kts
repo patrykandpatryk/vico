@@ -17,10 +17,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+  `dokka-convention`
   `publishing-convention`
   id("com.android.library")
   id("org.jetbrains.compose")
-  `dokka-convention`
   id("org.jetbrains.kotlin.multiplatform")
   id("org.jetbrains.kotlin.plugin.compose")
 }
@@ -41,6 +41,7 @@ kotlin {
       isStatic = true
     }
   }
+  jvm("desktop")
   sourceSets {
     commonMain.dependencies {
       implementation(compose.foundation)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 by Patryk Goworowski and Patrick Michalik.
+ * Copyright 2025 by Patryk Goworowski and Patrick Michalik.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import android.graphics.Color
 import android.graphics.RectF
 import androidx.annotation.RestrictTo
 import com.patrykandpatrick.vico.core.common.data.CacheStore
+import com.patrykandpatrick.vico.core.common.data.ExtraStore
+import kotlin.math.roundToInt
 
 /** A [MeasuringContext] extension with a [Canvas] reference. */
 public interface DrawingContext : MeasuringContext {
@@ -51,6 +53,8 @@ public fun DrawingContext(
 
     override val density: Float = density
 
+    override val extraStore: ExtraStore = ExtraStore.Empty
+
     override val isLtr: Boolean = isLtr
 
     override val cacheStore: CacheStore = CacheStore()
@@ -68,16 +72,13 @@ public fun DrawingContext(
 internal fun DrawingContext.getBitmap(
   cacheKeyNamespace: CacheStore.KeyNamespace,
   vararg cacheKeyComponents: Any,
-) =
-  cacheStore
-    .getOrNull<Bitmap>(cacheKeyNamespace, *cacheKeyComponents, canvas.width, canvas.height)
+): Bitmap {
+  val width = canvasBounds.width().roundToInt()
+  val height = canvasBounds.height().roundToInt()
+  return cacheStore
+    .getOrNull<Bitmap>(cacheKeyNamespace, *cacheKeyComponents, width, height)
     ?.apply { eraseColor(Color.TRANSPARENT) }
-    ?: Bitmap.createBitmap(canvas.width, canvas.height, Bitmap.Config.ARGB_8888).also {
-      cacheStore.set(
-        cacheKeyNamespace,
-        *cacheKeyComponents,
-        canvas.width,
-        canvas.height,
-        value = it,
-      )
+    ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also {
+      cacheStore.set(cacheKeyNamespace, *cacheKeyComponents, width, height, value = it)
     }
+}

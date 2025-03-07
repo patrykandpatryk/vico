@@ -32,12 +32,12 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.multiplatform.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.multiplatform.cartesian.axis.Axis
 import com.patrykandpatrick.vico.multiplatform.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianChartRanges
+import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.LineCartesianLayerDrawingModel
 import com.patrykandpatrick.vico.multiplatform.cartesian.data.LineCartesianLayerModel
@@ -401,7 +401,7 @@ protected constructor(
     with(context) {
       resetTempData()
 
-      val drawingModel = model.extraStore.getOrNull(drawingModelKey)
+      val drawingModel = extraStore.getOrNull(drawingModelKey)
 
       model.series.forEachIndexed { seriesIndex, series ->
         val pointInfoMap = drawingModel?.getOrNull(seriesIndex)
@@ -597,7 +597,7 @@ protected constructor(
           layerBounds.height
     }
 
-    series.forEachIn(range = minX..maxX, padding = 1) { entry, next ->
+    series.forEachIn(minX = minX, maxX = maxX, padding = 1) { entry, next ->
       val previousX = x
       val immutableX = nextX ?: getDrawX(entry)
       val immutableNextX = next?.let(::getDrawX)
