@@ -19,6 +19,7 @@ package com.patrykandpatrick.vico.sample
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.patrykandpatrick.vico.sample.Chart.Details
+import com.patrykandpatrick.vico.sample.multiplatform.ComposeMultiplatformAITestScores
 import com.patrykandpatrick.vico.sample.multiplatform.ComposeMultiplatformBasicColumnChart
 import com.patrykandpatrick.vico.sample.multiplatform.ComposeMultiplatformBasicComboChart
 import com.patrykandpatrick.vico.sample.multiplatform.ComposeMultiplatformBasicLineChart
@@ -29,6 +30,7 @@ object Charts {
       Chart(Details.BasicColumnChart) { ComposeMultiplatformBasicColumnChart(it) },
       Chart(Details.BasicLineChart) { ComposeMultiplatformBasicLineChart(it) },
       Chart(Details.BasicComboChart) { ComposeMultiplatformBasicComboChart(it) },
+      Chart(Details.AITestScores) { ComposeMultiplatformAITestScores(it) },
     )
 
   fun default(
