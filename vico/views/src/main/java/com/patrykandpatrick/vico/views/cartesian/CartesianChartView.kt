@@ -325,6 +325,7 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
       if (chart.layerBounds.isEmpty) return@withChartAndModel
 
       motionEventHandler.scrollEnabled = scrollHandler.scrollEnabled
+      motionEventHandler.consumeMoveEvents = themeHandler.consumeMoveEvents
       if (scroller.computeScrollOffset()) {
         scrollHandler.scroll(Scroll.Absolute.pixels(scroller.currX.toFloat()))
         postInvalidateOnAnimation()
